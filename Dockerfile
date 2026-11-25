@@ -27,6 +27,6 @@ VOLUME ["/data"]
 EXPOSE 8765
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD ["python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8765/', timeout=3).close()"]
+    CMD ["python", "-c", "import os; from urllib.request import urlopen; urlopen('http://127.0.0.1:%s/' % os.environ.get('FRAME_PORT', '8765'), timeout=3).close()"]
 
 CMD ["python", "app.py"]

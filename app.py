@@ -396,6 +396,7 @@ if __name__ == "__main__":
     # The TV library logs pairing tokens at INFO level.
     logging.getLogger("samsungtvws").setLevel(logging.WARNING)
     bind_host = os.environ.get("FRAME_BIND_HOST", "127.0.0.1")
-    print(f"Frame Photo Manager: http://{bind_host}:{PORT}", flush=True)
+    port = int(os.environ.get("FRAME_PORT", PORT))
+    print(f"Frame Photo Manager: http://{bind_host}:{port}", flush=True)
     print("No TV connection is made until you use the app. Press Ctrl+C to stop.", flush=True)
-    serve(create_app(), host=bind_host, port=PORT, threads=4)
+    serve(create_app(), host=bind_host, port=port, threads=4)
