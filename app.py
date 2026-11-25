@@ -41,11 +41,17 @@ OPERATIONS = {
 
 def create_app(tv=None):
     app = Flask(__name__)
+    access_password = os.environ.get("FRAME_ACCESS_PASSWORD", "")
+    if access_password and len(access_password) < 8:
+        raise RuntimeError("FRAME_ACCESS_PASSWORD must be at least 8 characters.")
     app.config.update(
         MAX_CONTENT_LENGTH=25 * 1024 * 1024,
-        TRUSTED_HOSTS=["127.0.0.1", "localhost"],
+        # With a password set, any Host is accepted so the app works by IP or name.
+        TRUSTED_HOSTS=None if access_password else ["127.0.0.1", "localhost"],
         ALLOW_CONTAINER_CLIENTS=os.environ.get("FRAME_ALLOW_CONTAINER_CLIENTS") == "1",
     )
+    failures = {}
+    failure_lock = Lock()
     csrf = secrets.token_urlsafe(32)
     activity_log = ActivityLog()
     app.extensions["activity_log"] = activity_log
@@ -67,9 +73,38 @@ def create_app(tv=None):
                 abort(404, "Preview expired or was replaced. Prepare the photo again.")
             return photos[photo_id][1]
 
+    def check_password():
+        now = time.monotonic()
+        address = request.remote_addr
+        with failure_lock:
+            recent = [stamp for stamp in failures.get(address, []) if now - stamp < 60]
+            failures[address] = recent
+            if len(recent) >= 5:
+                abort(429, "Too many failed sign-in attempts. Wait a minute.")
+        auth = request.authorization
+        valid = (
+            auth is not None and auth.type == "basic"
+            and secrets.compare_digest((auth.username or "").encode(), b"frame")
+            & secrets.compare_digest((auth.password or "").encode(), access_password.encode())
+        )
+        if not valid:
+            with failure_lock:
+                failures[address].append(now)
+            response = jsonify(error="Sign in required. Username: frame.")
+            response.status_code = 401
+            response.headers["WWW-Authenticate"] = 'Basic realm="Frame Control Center"'
+            return response
+
     @app.before_request
     def local_only():
-        if not app.config["ALLOW_CONTAINER_CLIENTS"] and request.remote_addr not in ("127.0.0.1", "::1"):
+        if access_password:
+            denied = check_password()
+            if denied is not None:
+                return denied
+        if (
+            not app.config["ALLOW_CONTAINER_CLIENTS"] and not access_password
+            and request.remote_addr not in ("127.0.0.1", "::1")
+        ):
             abort(403, "This app is accessible only from this computer.")
         if request.method not in ("GET", "HEAD", "OPTIONS") or request.endpoint == "activity":
             supplied = request.headers.get("X-Frame-Token", "")

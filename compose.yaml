@@ -3,9 +3,10 @@ services:
     build: .
     image: frame-control-center:local
     ports:
-      - "127.0.0.1:${FRAME_WEB_PORT:-8766}:8765"
+      - "${FRAME_PUBLISH_HOST:-127.0.0.1}:${FRAME_WEB_PORT:-8766}:8765"
     environment:
       FRAME_TV_HOST: "${FRAME_TV_HOST:-192.168.3.217}"
+      FRAME_ACCESS_PASSWORD: "${FRAME_ACCESS_PASSWORD:-}"
     volumes:
       - frame-data:/data
     restart: unless-stopped

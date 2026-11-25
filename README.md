@@ -108,6 +108,22 @@ Then open http://127.0.0.1:8766.
 | `FRAME_TV_HOST` | value in `app.py` | IP address of the TV |
 | `FRAME_BIND_HOST` | `127.0.0.1` | Interface the server listens on |
 | `FRAME_ALLOW_CONTAINER_CLIENTS` | unset | Set to `1` only inside Docker so bridged requests are accepted |
+| `FRAME_ACCESS_PASSWORD` | unset | Enables HTTP Basic auth (user `frame`), minimum 8 characters; 5 failures per minute are rate limited |
+| `FRAME_PUBLISH_HOST` | `127.0.0.1` | Docker Compose only: interface to publish the port on (`0.0.0.0` for LAN) |
+
+### LAN access (e.g. Raspberry Pi)
+
+Safest: keep the default and use an SSH tunnel: `ssh -L 8766:127.0.0.1:8766 user@raspberrypi`, then open http://127.0.0.1:8766.
+
+To browse directly from another computer on your home network:
+
+```bash
+FRAME_PUBLISH_HOST=0.0.0.0 \
+FRAME_ACCESS_PASSWORD='a-long-password' \
+docker compose up --build -d
+```
+
+Open `http://<pi-ip>:8766` and sign in as `frame`. Note: this is plain HTTP, so the password is sent in cleartext. Use it only on a trusted home network. The password is also visible through `docker inspect`.
 | `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
 
 The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows,
@@ -116,11 +132,11 @@ Do not commit or share it.
 
 ## Security
 
-- The app has **no user login**. It binds to loopback by default; keep it that way
-  or put it behind your own authentication.
+- The app has **no user login by default**. It binds to loopback; keep it that way,
+  or set `FRAME_ACCESS_PASSWORD` to enable a password for LAN access.
 - Never expose it to the internet. Anyone who can reach it can change your photos.
-- Requests are protected by trusted-host checks, a per-process CSRF token, origin
-  checks, and a strict Content Security Policy.
+- Requests are protected by a per-process CSRF token, origin checks, and a strict
+  Content Security Policy. Without a password, only `localhost`/`127.0.0.1` Host headers are accepted.
 - Errors shown in the UI and logs are sanitized.
 
 ## Tests

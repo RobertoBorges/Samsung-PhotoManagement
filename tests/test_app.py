@@ -1,3 +1,4 @@
+from base64 import b64encode
 from io import BytesIO
 from pathlib import Path
 import re
@@ -159,6 +160,37 @@ class AppTests(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.tv.calls, [])
+
+    def test_lan_access_requires_password(self):
+        with patch.dict("os.environ", {"FRAME_ACCESS_PASSWORD": "short"}):
+            with self.assertRaises(RuntimeError):
+                create_app(self.tv)
+        env = {
+            "FRAME_ACCESS_PASSWORD": "correct-horse",
+            "FRAME_ALLOW_CONTAINER_CLIENTS": "1",
+        }
+        with patch.dict("os.environ", env):
+            client = create_app(self.tv).test_client()
+        lan = {"REMOTE_ADDR": "192.168.1.20"}
+        url = "http://192.168.1.60:8766/"
+        response = client.get(url, environ_base=lan)
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("Basic", response.headers["WWW-Authenticate"])
+        good = {"Authorization": "Basic " + b64encode(b"frame:correct-horse").decode()}
+        bad = {"Authorization": "Basic " + b64encode(b"frame:wrong").decode()}
+        self.assertEqual(client.get(url, headers=bad, environ_base=lan).status_code, 401)
+        self.assertEqual(client.get(url, headers=good, environ_base=lan).status_code, 200)
+        self.assertEqual(client.post("/api/connect", headers=good, environ_base=lan).status_code, 403)
+        self.assertEqual(self.tv.calls, [])
+
+    def test_repeated_wrong_passwords_are_rate_limited(self):
+        with patch.dict("os.environ", {"FRAME_ACCESS_PASSWORD": "correct-horse"}):
+            client = create_app(self.tv).test_client()
+        bad = {"Authorization": "Basic " + b64encode(b"frame:wrong").decode()}
+        for _ in range(5):
+            self.assertEqual(client.get("/", headers=bad).status_code, 401)
+        good = {"Authorization": "Basic " + b64encode(b"frame:correct-horse").decode()}
+        self.assertEqual(client.get("/", headers=good).status_code, 429)
 
     def test_tv_host_environment_configures_connection_and_display(self):
         with patch.dict("os.environ", {"FRAME_TV_HOST": "192.0.2.10"}):
