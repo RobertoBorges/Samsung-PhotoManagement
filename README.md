@@ -42,14 +42,24 @@ REST API sends no CORS headers. The backend must therefore run on a machine that
 can reach the TV's LAN address (your PC, a Raspberry Pi, a NAS). It cannot reach
 the TV from a cloud host such as Azure unless you add a VPN or tunnel.
 
-## Quick start (Windows)
+## Quick start
 
 Requires Python 3.10 or newer.
+
+**Windows (PowerShell)**
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\start.ps1
+```
+
+**Linux / macOS / Raspberry Pi (bash)**
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python app.py
 ```
 
 Open http://127.0.0.1:8765, click **Connect TV > Connect / pair**, and approve
@@ -61,8 +71,14 @@ The TV address defaults to a value in `app.py`. Override it with an environment
 variable:
 
 ```powershell
+# Windows (PowerShell)
 $env:FRAME_TV_HOST = "192.168.1.50"
 .\start.ps1
+```
+
+```bash
+# bash
+FRAME_TV_HOST=192.168.1.50 .venv/bin/python app.py
 ```
 
 Find the address on the TV under Settings > General > Network > Network Status.
@@ -73,8 +89,14 @@ A Dockerfile and `compose.yaml` are included, including for Raspberry Pi (arm64)
 See [docs/DOCKER.md](docs/DOCKER.md).
 
 ```powershell
+# Windows (PowerShell)
 $env:FRAME_TV_HOST = "192.168.1.50"
 docker compose up --build -d
+```
+
+```bash
+# bash
+FRAME_TV_HOST=192.168.1.50 docker compose up --build -d
 ```
 
 Then open http://127.0.0.1:8766.
@@ -88,8 +110,9 @@ Then open http://127.0.0.1:8766.
 | `FRAME_ALLOW_CONTAINER_CLIENTS` | unset | Set to `1` only inside Docker so bridged requests are accepted |
 | `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
 
-The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows, or
-`/data/FramePhotoManager` in Docker. Do not commit or share it.
+The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows,
+`~/FramePhotoManager/` on Linux and macOS, or `/data/FramePhotoManager` in Docker.
+Do not commit or share it.
 
 ## Security
 
@@ -103,12 +126,21 @@ The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows, o
 ## Tests
 
 ```powershell
+# Windows (PowerShell)
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m unittest tests.test_app tests.test_dashboard tests.test_thumbnails
 .\.venv\Scripts\python.exe -m unittest tests.test_dashboard_browser
 ```
 
-The browser suite is optional. It needs Playwright and Microsoft Edge, and runs
+```bash
+# bash
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m unittest tests.test_app tests.test_dashboard tests.test_thumbnails
+.venv/bin/python -m unittest tests.test_dashboard_browser
+```
+
+The browser suite is optional. It needs Playwright and Microsoft Edge (its path is
+set for Windows in the test file), and runs
 against a simulated TV. No test contacts a real TV.
 
 ## Project layout

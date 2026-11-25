@@ -1,11 +1,12 @@
 # Frame Control Center: Docker
 
-Requires Docker Desktop running with Linux containers. Run commands from this
-directory in PowerShell.
+Requires Docker Desktop (Windows/macOS, Linux containers) or Docker Engine
+(Linux, including Raspberry Pi). Run commands from this directory. Examples are
+given for PowerShell and bash.
 
 ## Build and run
 
-```powershell
+```bash
 docker compose up --build -d
 ```
 
@@ -14,7 +15,7 @@ does not conflict with the native app on port 8765.
 
 Click **Connect / pair** and approve the app on the TV if prompted. The container
 has its own saved pairing token; it does not
-copy your Windows tokens into the image. No TV commands run at startup.
+copy your host's tokens into the image. No TV commands run at startup.
 
 HEIC / HEIF conversion is included and runs locally in the container. Preview
 preparation never uploads or selects a photo automatically.
@@ -24,12 +25,18 @@ preparation never uploads or selects a photo automatically.
 To change the TV address or local browser port, set these before starting:
 
 ```powershell
-$env:FRAME_TV_HOST = "192.168.3.217"
+# Windows (PowerShell)
+$env:FRAME_TV_HOST = "192.168.1.50"
 $env:FRAME_WEB_PORT = "8766"
 docker compose up --build -d
 ```
 
-These settings affect the current PowerShell process. The defaults are already
+```bash
+# bash
+FRAME_TV_HOST=192.168.1.50 FRAME_WEB_PORT=8766 docker compose up --build -d
+```
+
+These settings apply only to that shell or command. The defaults are already
 set in `compose.yaml`.
 
 The image listens on port 8765 internally. `FRAME_BIND_HOST=0.0.0.0` and
@@ -43,7 +50,7 @@ cross-origin protections remain enabled inside the container.
 
 ## Logs, stopping, and updates
 
-```powershell
+```bash
 docker compose logs -f frame
 docker compose down
 docker compose up --build -d
@@ -61,8 +68,19 @@ are neither mounted nor copied into the image.
 ## Without Compose
 
 ```powershell
+# Windows (PowerShell)
 docker build -t frame-control-center:local .
-docker run -d --name frame-control-center --restart unless-stopped --init --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true -p 127.0.0.1:8766:8765 -e FRAME_TV_HOST=192.168.3.217 -v frame-control-data:/data frame-control-center:local
+docker run -d --name frame-control-center --restart unless-stopped --init --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true -p 127.0.0.1:8766:8765 -e FRAME_TV_HOST=192.168.1.50 -v frame-control-data:/data frame-control-center:local
+docker logs -f frame-control-center
+```
+
+```bash
+# bash
+docker build -t frame-control-center:local .
+docker run -d --name frame-control-center --restart unless-stopped --init \
+  --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true \
+  -p 127.0.0.1:8766:8765 -e FRAME_TV_HOST=192.168.1.50 \
+  -v frame-control-data:/data frame-control-center:local
 docker logs -f frame-control-center
 ```
 
@@ -75,9 +93,18 @@ approved package mirror, pass its index URL as a temporary BuildKit secret
 instead of storing it in the image or a Docker build argument:
 
 ```powershell
+# Windows (PowerShell)
 $env:FRAME_BUILD_PIP_INDEX_URL = "https://your-approved-mirror.example/simple/"
 docker build --secret id=pip_index_url,env=FRAME_BUILD_PIP_INDEX_URL -t frame-control-center:local .
 Remove-Item Env:\FRAME_BUILD_PIP_INDEX_URL
+docker compose up -d --no-build
+```
+
+```bash
+# bash
+export FRAME_BUILD_PIP_INDEX_URL="https://your-approved-mirror.example/simple/"
+docker build --secret id=pip_index_url,env=FRAME_BUILD_PIP_INDEX_URL -t frame-control-center:local .
+unset FRAME_BUILD_PIP_INDEX_URL
 docker compose up -d --no-build
 ```
 
