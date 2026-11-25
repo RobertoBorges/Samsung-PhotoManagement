@@ -108,8 +108,7 @@ Then open http://127.0.0.1:8766.
 | `FRAME_TV_HOST` | value in `app.py` | IP address of the TV |
 | `FRAME_BIND_HOST` | `127.0.0.1` | Interface the server listens on |
 | `FRAME_ALLOW_CONTAINER_CLIENTS` | unset | Set to `1` only inside Docker so bridged requests are accepted |
-| `FRAME_ACCESS_PASSWORD` | unset | Enables HTTP Basic auth (user `frame`), minimum 8 characters; 5 failures per minute are rate limited |
-| `FRAME_OPEN_LAN` | unset | Set to `1` to allow LAN access with **no login and no Host restriction**. Anyone on your network can manage the photos |
+| `FRAME_OPEN_LAN` | unset | Set to `1` to allow access from your home network (any IP or name). There is no login: anyone on your network can manage the photos |
 | `FRAME_PORT` | `8765` | Port the app listens on (inside Docker the macvlan override uses `80`) |
 | `FRAME_PUBLISH_HOST` | `127.0.0.1` | Docker Compose only: interface to publish the port on (`0.0.0.0` for LAN) |
 | `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
@@ -134,7 +133,7 @@ docker compose up --build -d
 Open http://127.0.0.1:8766 on the Pi, or from another machine use an SSH tunnel:
 `ssh -L 8766:127.0.0.1:8766 user@raspberrypi`.
 
-### 2. Home network, no password, no host restrictions
+### 2. Home network (no login)
 
 For a trusted home network. Anyone on it can change your TV photos.
 
@@ -151,13 +150,7 @@ docker ps   # PORTS must show 0.0.0.0:8766->8765/tcp
 
 Open `http://<pi-ip>:8766` from any device on the network (plain `http`, not `https`).
 
-### 3. Home network with a password
-
-Same as above but replace `FRAME_OPEN_LAN=1` with `FRAME_ACCESS_PASSWORD=<8+ characters>`.
-Sign in as user `frame`. Failed sign-ins are rate limited. The password travels over
-plain HTTP and is visible through `docker inspect`, so use it only on a trusted network.
-
-### 4. Its own IP address and port 80 (macvlan)
+### 3. Its own IP address and port 80 (macvlan)
 
 Gives the container its own LAN address, for example `http://192.168.3.50`, separate
 from the Pi's. Requires a wired Pi (Wi-Fi adapters generally cannot do macvlan). The Pi
@@ -188,7 +181,7 @@ For a friendly name, add a DNS record in Pi-hole (`dns.hosts`):
 | Symptom | Cause / fix |
 |---------|-------------|
 | `ERR_CONNECTION_REFUSED` | The port is published on `127.0.0.1`. Set `FRAME_PUBLISH_HOST=0.0.0.0` in `.env` and recreate: `docker compose up -d --force-recreate` |
-| `Host '...' is not trusted` | Neither `FRAME_OPEN_LAN=1` nor a password reached the container. Check `docker compose config` |
+| `Host '...' is not trusted` | `FRAME_OPEN_LAN=1` did not reach the container. Check `docker compose config` |
 | Page will not load | Use `http://`, not `https://` |
 | Variables ignored | Put them in `.env`; `sudo` drops exported variables |
 | `docker compose` cannot find `.env` values | Run it from the folder containing `compose.yaml` |
@@ -200,8 +193,8 @@ Do not commit or share it.
 ## Security
 
 - By default the app has **no login** and only accepts requests from this computer
-  (`localhost`/`127.0.0.1`). Keep it that way, or opt in to LAN access with
-  `FRAME_OPEN_LAN=1` (no login) or `FRAME_ACCESS_PASSWORD` (HTTP Basic login).
+  (`localhost`/`127.0.0.1`). Keep it that way, or opt in to home-network access with
+  `FRAME_OPEN_LAN=1`. The app never has a login.
 - Never expose it to the internet. Anyone who can reach it can change your photos.
   For remote access use a VPN such as Tailscale, not port forwarding.
 - Requests are protected by a per-process CSRF token, origin checks, and a strict
