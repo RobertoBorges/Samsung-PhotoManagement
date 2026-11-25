@@ -1,0 +1,22 @@
+# Gives the container its own LAN IP (reach it at http://<FRAME_LAN_IP>:8765).
+# Edit subnet, gateway, parent interface and IP for your network.
+# Use with: docker compose -f compose.yaml -f compose.macvlan.yaml up --build -d
+# Needs a wired (eth0) Pi: Wi-Fi adapters usually cannot do macvlan.
+services:
+  frame:
+    ports: !reset []
+    environment:
+      FRAME_OPEN_LAN: "1"
+    networks:
+      lan:
+        ipv4_address: ${FRAME_LAN_IP:-192.168.3.50}
+
+networks:
+  lan:
+    driver: macvlan
+    driver_opts:
+      parent: ${FRAME_LAN_PARENT:-eth0}
+    ipam:
+      config:
+        - subnet: ${FRAME_LAN_SUBNET:-192.168.3.0/24}
+          gateway: ${FRAME_LAN_GATEWAY:-192.168.3.1}
