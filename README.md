@@ -109,25 +109,89 @@ Then open http://127.0.0.1:8766.
 | `FRAME_BIND_HOST` | `127.0.0.1` | Interface the server listens on |
 | `FRAME_ALLOW_CONTAINER_CLIENTS` | unset | Set to `1` only inside Docker so bridged requests are accepted |
 | `FRAME_ACCESS_PASSWORD` | unset | Enables HTTP Basic auth (user `frame`), minimum 8 characters; 5 failures per minute are rate limited |
-| `FRAME_OPEN_LAN` | unset | Set to `1` to allow LAN access with **no login**. Anyone on your network can manage the photos |
+| `FRAME_OPEN_LAN` | unset | Set to `1` to allow LAN access with **no login and no Host restriction**. Anyone on your network can manage the photos |
+| `FRAME_PORT` | `8765` | Port the app listens on (inside Docker the macvlan override uses `80`) |
 | `FRAME_PUBLISH_HOST` | `127.0.0.1` | Docker Compose only: interface to publish the port on (`0.0.0.0` for LAN) |
+| `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
+| `FRAME_LAN_IP`, `FRAME_LAN_PARENT`, `FRAME_LAN_SUBNET`, `FRAME_LAN_GATEWAY` | `192.168.3.50`, `eth0`, `192.168.3.0/24`, `192.168.3.1` | macvlan override only (see below) |
 
-### LAN access (e.g. Raspberry Pi)
+Put these in a `.env` file next to `compose.yaml` (ignored by Git) so they survive
+`sudo` and new shells.
 
-Safest: keep the default and use an SSH tunnel: `ssh -L 8766:127.0.0.1:8766 user@raspberrypi`, then open http://127.0.0.1:8766.
+## Run on Linux or a Raspberry Pi with containers
 
-To browse directly from another computer on your home network:
+Pick the access mode that fits your network. All examples assume the repo is in
+`~/Samsung-PhotoManagement` and the TV is at `192.168.1.50`.
+
+### 1. Local only (default, safest)
 
 ```bash
-FRAME_PUBLISH_HOST=0.0.0.0 \
-FRAME_ACCESS_PASSWORD='a-long-password' \
+cd ~/Samsung-PhotoManagement
+echo 'FRAME_TV_HOST=192.168.1.50' > .env
 docker compose up --build -d
 ```
 
-Open `http://<pi-ip>:8766` and sign in as `frame`. Note: this is plain HTTP, so the password is sent in cleartext. Use it only on a trusted home network. The password is also visible through `docker inspect`.
+Open http://127.0.0.1:8766 on the Pi, or from another machine use an SSH tunnel:
+`ssh -L 8766:127.0.0.1:8766 user@raspberrypi`.
 
-**No password:** for a trusted home network you can skip the login with `FRAME_OPEN_LAN=1` (in `.env`: `FRAME_PUBLISH_HOST=0.0.0.0` and `FRAME_OPEN_LAN=1`). Anyone on that network can then change your TV photos.
-| `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
+### 2. Home network, no password, no host restrictions
+
+For a trusted home network. Anyone on it can change your TV photos.
+
+```bash
+cd ~/Samsung-PhotoManagement
+cat > .env <<'EOF'
+FRAME_TV_HOST=192.168.1.50
+FRAME_PUBLISH_HOST=0.0.0.0
+FRAME_OPEN_LAN=1
+EOF
+docker compose up --build -d
+docker ps   # PORTS must show 0.0.0.0:8766->8765/tcp
+```
+
+Open `http://<pi-ip>:8766` from any device on the network (plain `http`, not `https`).
+
+### 3. Home network with a password
+
+Same as above but replace `FRAME_OPEN_LAN=1` with `FRAME_ACCESS_PASSWORD=<8+ characters>`.
+Sign in as user `frame`. Failed sign-ins are rate limited. The password travels over
+plain HTTP and is visible through `docker inspect`, so use it only on a trusted network.
+
+### 4. Its own IP address and port 80 (macvlan)
+
+Gives the container its own LAN address, for example `http://192.168.3.50`, separate
+from the Pi's. Requires a wired Pi (Wi-Fi adapters generally cannot do macvlan). The Pi
+itself cannot reach the container at that IP; other devices can.
+
+```bash
+cd ~/Samsung-PhotoManagement
+cat > .env <<'EOF'
+FRAME_TV_HOST=192.168.1.50
+FRAME_LAN_IP=192.168.1.60
+FRAME_LAN_PARENT=eth0
+FRAME_LAN_SUBNET=192.168.1.0/24
+FRAME_LAN_GATEWAY=192.168.1.1
+EOF
+docker compose down
+docker compose -f compose.yaml -f compose.macvlan.yaml up --build -d
+```
+
+Choose an unused address, ideally outside your router's DHCP range. This mode uses
+`FRAME_OPEN_LAN=1` and port 80.
+
+For a friendly name, add a DNS record in Pi-hole (`dns.hosts`):
+`192.168.1.60 theframe.lan`, then browse to `http://theframe.lan/`. Avoid `.local`
+(Windows treats it as mDNS) and turn off browser secure DNS if the name does not resolve.
+
+### Troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| `ERR_CONNECTION_REFUSED` | The port is published on `127.0.0.1`. Set `FRAME_PUBLISH_HOST=0.0.0.0` in `.env` and recreate: `docker compose up -d --force-recreate` |
+| `Host '...' is not trusted` | Neither `FRAME_OPEN_LAN=1` nor a password reached the container. Check `docker compose config` |
+| Page will not load | Use `http://`, not `https://` |
+| Variables ignored | Put them in `.env`; `sudo` drops exported variables |
+| `docker compose` cannot find `.env` values | Run it from the folder containing `compose.yaml` |
 
 The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows,
 `~/FramePhotoManager/` on Linux and macOS, or `/data/FramePhotoManager` in Docker.
@@ -135,11 +199,13 @@ Do not commit or share it.
 
 ## Security
 
-- The app has **no user login by default**. It binds to loopback; keep it that way,
-  or set `FRAME_ACCESS_PASSWORD` to enable a password for LAN access.
+- By default the app has **no login** and only accepts requests from this computer
+  (`localhost`/`127.0.0.1`). Keep it that way, or opt in to LAN access with
+  `FRAME_OPEN_LAN=1` (no login) or `FRAME_ACCESS_PASSWORD` (HTTP Basic login).
 - Never expose it to the internet. Anyone who can reach it can change your photos.
+  For remote access use a VPN such as Tailscale, not port forwarding.
 - Requests are protected by a per-process CSRF token, origin checks, and a strict
-  Content Security Policy. Without a password, only `localhost`/`127.0.0.1` Host headers are accepted.
+  Content Security Policy, in every mode.
 - Errors shown in the UI and logs are sanitized.
 
 ## Tests
@@ -173,6 +239,7 @@ against a simulated TV. No test contacts a real TV.
 | `activity.py` | Bounded in-memory activity log |
 | `templates/index.html` | The whole UI |
 | `Dockerfile`, `compose.yaml` | Container build and run |
+| `compose.macvlan.yaml` | Optional override: container gets its own LAN IP on port 80 |
 
 ## Known TV quirks
 
