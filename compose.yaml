@@ -7,6 +7,7 @@ services:
     environment:
       FRAME_TV_HOST: "${FRAME_TV_HOST:-192.168.3.217}"
       FRAME_ACCESS_PASSWORD: "${FRAME_ACCESS_PASSWORD:-}"
+      FRAME_OPEN_LAN: "${FRAME_OPEN_LAN:-}"
     volumes:
       - frame-data:/data
     restart: unless-stopped

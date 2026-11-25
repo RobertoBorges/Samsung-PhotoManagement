@@ -44,11 +44,14 @@ def create_app(tv=None):
     access_password = os.environ.get("FRAME_ACCESS_PASSWORD", "")
     if access_password and len(access_password) < 8:
         raise RuntimeError("FRAME_ACCESS_PASSWORD must be at least 8 characters.")
+    open_lan = os.environ.get("FRAME_OPEN_LAN") == "1"
     app.config.update(
         MAX_CONTENT_LENGTH=25 * 1024 * 1024,
-        # With a password set, any Host is accepted so the app works by IP or name.
-        TRUSTED_HOSTS=None if access_password else ["127.0.0.1", "localhost"],
-        ALLOW_CONTAINER_CLIENTS=os.environ.get("FRAME_ALLOW_CONTAINER_CLIENTS") == "1",
+        # With a password or open LAN mode, any Host is accepted (access by IP or name).
+        TRUSTED_HOSTS=None if (access_password or open_lan) else ["127.0.0.1", "localhost"],
+        ALLOW_CONTAINER_CLIENTS=(
+            open_lan or os.environ.get("FRAME_ALLOW_CONTAINER_CLIENTS") == "1"
+        ),
     )
     failures = {}
     failure_lock = Lock()

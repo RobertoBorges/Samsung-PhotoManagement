@@ -183,6 +183,14 @@ class AppTests(unittest.TestCase):
         self.assertEqual(client.post("/api/connect", headers=good, environ_base=lan).status_code, 403)
         self.assertEqual(self.tv.calls, [])
 
+    def test_open_lan_mode_needs_no_password_but_keeps_csrf(self):
+        with patch.dict("os.environ", {"FRAME_OPEN_LAN": "1"}):
+            client = create_app(self.tv).test_client()
+        lan = {"REMOTE_ADDR": "192.168.1.20"}
+        self.assertEqual(client.get("http://192.168.1.60:8766/", environ_base=lan).status_code, 200)
+        self.assertEqual(client.post("/api/connect", environ_base=lan).status_code, 403)
+        self.assertEqual(self.tv.calls, [])
+
     def test_repeated_wrong_passwords_are_rate_limited(self):
         with patch.dict("os.environ", {"FRAME_ACCESS_PASSWORD": "correct-horse"}):
             client = create_app(self.tv).test_client()

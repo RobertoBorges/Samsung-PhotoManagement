@@ -109,6 +109,7 @@ Then open http://127.0.0.1:8766.
 | `FRAME_BIND_HOST` | `127.0.0.1` | Interface the server listens on |
 | `FRAME_ALLOW_CONTAINER_CLIENTS` | unset | Set to `1` only inside Docker so bridged requests are accepted |
 | `FRAME_ACCESS_PASSWORD` | unset | Enables HTTP Basic auth (user `frame`), minimum 8 characters; 5 failures per minute are rate limited |
+| `FRAME_OPEN_LAN` | unset | Set to `1` to allow LAN access with **no login**. Anyone on your network can manage the photos |
 | `FRAME_PUBLISH_HOST` | `127.0.0.1` | Docker Compose only: interface to publish the port on (`0.0.0.0` for LAN) |
 
 ### LAN access (e.g. Raspberry Pi)
@@ -124,6 +125,8 @@ docker compose up --build -d
 ```
 
 Open `http://<pi-ip>:8766` and sign in as `frame`. Note: this is plain HTTP, so the password is sent in cleartext. Use it only on a trusted home network. The password is also visible through `docker inspect`.
+
+**No password:** for a trusted home network you can skip the login with `FRAME_OPEN_LAN=1` (in `.env`: `FRAME_PUBLISH_HOST=0.0.0.0` and `FRAME_OPEN_LAN=1`). Anyone on that network can then change your TV photos.
 | `FRAME_WEB_PORT` | `8766` | Host port for Docker Compose |
 
 The pairing token is stored in `%LOCALAPPDATA%\FramePhotoManager\` on Windows,
