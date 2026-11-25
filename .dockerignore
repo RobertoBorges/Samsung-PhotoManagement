@@ -1,0 +1,10 @@
+**
+!Dockerfile
+!requirements.txt
+!activity.py
+!app.py
+!images.py
+!thumbnails.py
+!tv.py
+!templates/
+!templates/index.html

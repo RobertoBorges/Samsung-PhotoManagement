@@ -1,0 +1,39 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Test and tooling caches
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+test-results/
+playwright-report/
+
+# Local pairing tokens and secrets: never commit these
+*token*.txt
+.env
+.env.*
+*.pem
+*.key
+*.secret
+
+# Local archives, backups and logs
+*.tgz
+*.zip
+*.log
+*-backup/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
