@@ -5,7 +5,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 
 SIZE = (3840, 2160)
-Image.MAX_IMAGE_PIXELS = 40_000_000
+Image.MAX_IMAGE_PIXELS = 120_000_000
 register_heif_opener(thumbnails=False)
 
 
@@ -18,7 +18,7 @@ def prepare_photo(data: bytes, rotation: int, layout: str) -> bytes:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(data)) as source:
-                if source.format not in ("JPEG", "PNG", "WEBP", "HEIF"):
+                if source.format not in ("JPEG", "MPO", "PNG", "WEBP", "HEIF"):
                     raise ValueError("Choose a JPEG, PNG, WebP, HEIC, or HEIF photo.")
                 source.load()
                 photo = ImageOps.exif_transpose(source)
@@ -48,5 +48,5 @@ def prepare_photo(data: bytes, rotation: int, layout: str) -> bytes:
     ) as exc:
         raise ValueError(
             "Cannot read this photo. Use a valid JPEG, PNG, WebP, HEIC, or HEIF "
-            "image under 40 megapixels."
+            "image under 120 megapixels."
         ) from exc
